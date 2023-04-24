@@ -1,0 +1,15 @@
+-- Your SQL goes here
+CREATE TABLE IF NOT EXISTS tasks (
+    id CHARACTER(36) NOT NULL PRIMARY KEY,
+    name CHARACTER(127) NOT NULL,
+    description CHARACTER(255) NOT NULL,
+    status CHARACTER(8) NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TRIGGER IF NOT EXISTS UpdateTimestamps AFTER UPDATE ON tasks
+    FOR EACH ROW WHEN NEW.updated_at <= OLD.updated_at
+BEGIN
+    update tasks set updated_at=CURRENT_TIMESTAMP where id=OLD.id;
+END;

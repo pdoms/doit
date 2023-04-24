@@ -1,0 +1,117 @@
+use actix_web::{
+    App,
+    web,
+    test::{read_body_json, init_service, TestRequest}
+};
+use actix_rt;
+use serde_json::json;
+use crate::{db::{models::Task, establish_connection}};
+
+use super::task::{index, create, get_by_id, task_update, set_status};
+
+#[actix_rt::test]
+async fn create_task_from_api() {
+    let test_name = "endpoint_test_1";
+    let test_description = "endpoint_test_1 description";
+    let request_body = json!({"name": test_name, "description": test_description});
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create)).await;
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+    assert!(resp.status().is_success(), "Failed to create task");
+    let task: Task = read_body_json(resp).await;
+    assert_eq!(task.name, test_name);
+    assert_eq!(task.description, test_description);
+}
+
+#[actix_rt::test]
+async fn get_all_tasks_api() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(index)).await;
+    let resp = TestRequest::get()
+        .uri("/")
+        .send_request(&mut app)
+        .await;
+
+    assert!(resp.status().is_success(), "Failed to retrieve tasks");
+    let tasks: Vec<Task> = read_body_json(resp).await;
+    assert!(tasks.len() > 0);
+}
+
+#[actix_rt::test]
+async fn retrieve_by_id_api() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(index).service(get_by_id)).await;
+    let resp = TestRequest::get()
+        .uri("/")
+        .send_request(&mut app)
+        .await;
+
+    let tasks: Vec<Task> = read_body_json(resp).await;
+    let task = tasks.get(0).unwrap();
+    let resp_task = TestRequest::get()
+        .uri(format!("/{}", task.id).as_str())
+        .send_request(&mut app)
+        .await;
+    assert!(resp_task.status().is_success(), "Failed to fetch task by id");
+    let returned_task: Task = read_body_json(resp_task).await;
+    assert_eq!(returned_task.id, task.id);
+    assert_eq!(returned_task.name, task.name);
+    assert_eq!(returned_task.description, task.description);
+    assert_eq!(returned_task.created_at, task.created_at);
+}
+
+
+#[actix_rt::test]
+async fn update_task() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(task_update)).await;
+    let test_name = "endpoint_test_4";
+    let test_description = "endpoint_test_4 description";
+    let request_body = json!({"name": test_name, "description": test_description});
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+    let mut task: Task = read_body_json(resp).await;
+    task.name = "endpoint_test_4_update".to_string();
+    let ser = serde_json::to_string(&task).unwrap();
+    let val: serde_json::Value = serde_json::from_str(ser.as_str()).unwrap();
+    let resp_upd = TestRequest::put()
+        .uri("/")
+        .set_json(val)
+        .send_request(&mut app)
+        .await;
+    assert!(resp_upd.status().is_success(), "Error updating task");
+    let updated_task: Task = read_body_json(resp_upd).await;
+    assert_eq!(updated_task.id, task.id);
+    assert_eq!(updated_task.name, "endpoint_test_4_update".to_string());
+    assert_eq!(updated_task.description, "endpoint_test_4 description".to_string());
+}
+
+#[actix_rt::test]
+async fn set_status_task() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status)).await;
+    let test_name = "endpoint_test_5";
+    let request_body = json!({"name": test_name});
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+    let task: Task = read_body_json(resp).await;
+
+    let resp_status = TestRequest::get()
+        .uri(format!("/set/{}?status=done", task.id).as_str())
+        .send_request(&mut app)
+        .await;
+    assert!(resp_status.status().is_success(), "Failed to update state");
+    let t: Task = read_body_json(resp_status).await;
+    assert_eq!(t.status, "done");
+    
+}

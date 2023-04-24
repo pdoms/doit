@@ -1,0 +1,67 @@
+use actix_web::{Responder, web, get, post, put, HttpResponse};
+use serde::{Serialize, Deserialize};
+
+use crate::db::{DbPool, models::Task};
+
+#[derive(Serialize, Deserialize)]
+pub struct TaskForm {
+    name: String,
+    description: Option<String>
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct StatusUpdate {
+    status: String
+}
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RawTask {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub status:  String,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime
+}
+
+#[post("/")]
+pub async fn create(task_form: web::Json<TaskForm>, pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    match Task::create(task_form.name.as_str(), task_form.description.as_deref(), &mut conn) {
+        Some(task) => HttpResponse::Created().json(task),
+        _ => HttpResponse::InternalServerError().json("Could not create user")
+    }
+}
+
+#[get("/")]
+pub async fn index(pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    HttpResponse::Ok().json(Task::list(&mut conn))
+}
+#[get("/{id}")]
+pub async fn get_by_id(id: web::Path<String>, pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    match Task::by_id(&id, &mut conn) {
+        Some(task) => HttpResponse::Ok().json(task),
+        _ => HttpResponse::NotFound().json("Not Found")
+    }
+}
+
+#[put("/")]
+pub async fn task_update(task: web::Json<Task>, pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    match Task::update(task.into_inner(), &mut conn) {
+        Some(tsk) => HttpResponse::Ok().json(tsk),
+        _ => HttpResponse::NotFound().json("Not Found")
+    }
+}
+
+#[get("/set/{id}")]
+pub async fn set_status(id: web::Path<String>, param: web::Query<StatusUpdate>, pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    match Task::set_status(&id, &param.status, &mut conn) {
+        Some(tsk) => HttpResponse::Ok().json(tsk),
+        _ => HttpResponse::NotFound().json("Not Found")
+    }
+}
+
+//TODO filter by endpoint
