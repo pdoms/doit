@@ -6,27 +6,19 @@ use crate::db::{DbPool, models::Task};
 #[derive(Serialize, Deserialize)]
 pub struct TaskForm {
     name: String,
-    description: Option<String>
+    description: Option<String>,
+    due: Option<chrono::NaiveDateTime>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilterStatus {
     status: String
 }
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RawTask {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub status:  String,
-    pub created_at: chrono::NaiveDateTime,
-    pub updated_at: chrono::NaiveDateTime
-}
 
 #[post("/")]
 pub async fn create(task_form: web::Json<TaskForm>, pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
-    match Task::create(task_form.name.as_str(), task_form.description.as_deref(), &mut conn) {
+    match Task::create(task_form.name.as_str(), task_form.description.as_deref(), task_form.due, &mut conn) {
         Some(task) => HttpResponse::Created().json(task),
         _ => HttpResponse::InternalServerError().json("Could not create user")
     }
@@ -72,7 +64,5 @@ pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::
         0 => HttpResponse::NotFound().json("No entries found."),
         _ => HttpResponse::Ok().json(result)
     }
-
-
 }
 
