@@ -53,12 +53,12 @@ pub fn establish_connection() -> DbPool {
     //if cfg!(test) {
         let manager = ConnectionManager::<SqliteConnection>::new(":memory");
         let pool =Pool::builder()
-            .max_size(16)
-            .connection_customizer(Box::new(ConnectionOptions {
-                enable_wal: true,
-                enable_foreign_keys: true,
-                busy_timout: Some(30000)
-            }))
+ //           .max_size(16)
+ //           .connection_customizer(Box::new(ConnectionOptions {
+ //               enable_wal: true,
+ //               enable_foreign_keys: true,
+ //               busy_timout: Some(30000)
+ //           }))
         .build(manager).expect("Failed to create DB pool.");
         let _ = run_migrations(&mut pool.get().unwrap()).expect("error running migrations");
         pool

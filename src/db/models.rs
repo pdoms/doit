@@ -111,6 +111,15 @@ impl Task {
                 Err(_) => None
             }
     }
+
+    pub fn filter_by_status(filter_status: &str, conn: &mut SqliteConnection) -> Vec<Task> {
+        use super::schema::tasks::dsl::status;
+        if let Ok(records) = task_dsl.filter(status.eq(filter_status)).get_results(conn) {
+            records
+        } else {
+            vec![]
+        }
+    }
 }
 
 #[cfg(test)]

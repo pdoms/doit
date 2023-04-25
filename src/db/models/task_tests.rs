@@ -81,5 +81,14 @@ fn change_status() {
     let task_init = Task::create("test_7",None, &mut conn).unwrap();
     let result = Task::set_status(&task_init.id, "done", &mut conn).unwrap();
     assert_eq!(result.status, "done".to_string());
+}
 
+fn filter_by_status() {
+    let mut conn = establish_connection().get().unwrap();
+    let task_init_1 = Task::create("test_8",None, &mut conn).unwrap();
+    let _task_init_2 = Task::create("test_9",None, &mut conn).unwrap();
+    let _result = Task::set_status(&task_init_1.id, "test", &mut conn);
+    let query_result = Task::filter_by_status("test", &mut conn);
+    assert_eq!(query_result.len(), 1);
+    assert_ne!(query_result[0].status, "test");
 }
