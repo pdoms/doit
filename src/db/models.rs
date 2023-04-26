@@ -57,13 +57,13 @@ impl Task {
         }
     }
 
-    pub fn check_overdue(check_id: &str, conn: &mut SqliteConnection) {
+    pub fn check_overdue(check_id: &str, conn: &mut SqliteConnection) -> Result<usize, diesel::result::Error> {
         use super::schema::tasks::dsl::{id, due, status};
         diesel::update(task_dsl)
-            .filter(id.eq(check_id).and(due.lt(now)))
+            .filter(id.eq(check_id))
+            .filter(due.lt(now))
             .set(status.eq("overdue"))
             .execute(conn)
-            .expect("Error checking due dates.");
     }
 
     pub fn create(name: &str, description: Option<&str>, due: Option<chrono::NaiveDateTime>, conn: &mut SqliteConnection) -> Option<Self> {
@@ -153,6 +153,12 @@ impl Task {
         }
     }
 
+    pub fn delete_task(trg_id: &str, conn: &mut SqliteConnection) -> Result<usize, diesel::result::Error> {
+        use super::schema::tasks::dsl::id;
+        diesel::delete(task_dsl)
+            .filter(id.eq(trg_id))
+            .execute(conn)
+    }
 }
 
 #[cfg(test)]
