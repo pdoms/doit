@@ -98,6 +98,16 @@ fn filter_by_status() {
 
 #[test]
 #[serial]
+fn test_delete() {
+    let mut conn = establish_connection().get().unwrap();
+    let task_1 = Task::create("test_10", None, None, &mut conn).unwrap();
+    let rows = Task::delete_task(&task_1.id, &mut conn);
+    assert_eq!(rows, Ok(1));
+    let back = Task::by_id(&task_1.id, &mut conn);
+    assert!(back.is_none());
+}
+#[test]
+#[serial]
 fn test_overdue() {
     let due = chrono::Local::now().naive_local();
     let two_sec = time::Duration::from_secs(2);
@@ -105,5 +115,10 @@ fn test_overdue() {
     let mut conn = establish_connection().get().unwrap();
     let task_init = Task::create("test_11", None, Some(due), &mut conn).unwrap();
     assert_eq!(task_init.status, "overdue");
+    let rows = Task::check_overdue(&task_init.id, &mut conn);
+    let tsk = Task::by_id(&task_init.id, &mut conn).unwrap();
+    assert_eq!(tsk.status, "overdue");
 }
+
+
 
