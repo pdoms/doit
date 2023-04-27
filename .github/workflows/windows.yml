@@ -9,26 +9,15 @@ env:
 
 jobs:
   build:
-
     runs-on: windows-latest
-    services:
-          postgres:
-            image: postgres
-
-            env:
-              POSTGRES_PASSWORD: test
-              POSTGRES_USER: postgres
-              POSTGRES_DB: todo
-
-            options: >-
-              --health-cmd pg_isready
-              --health-interval 10s
-              --health-timeout 5s
-              --health-retries 5
-            ports:
-              - 5432:5432
     steps:
     - uses: actions/checkout@v3
+    - uses: ikalnytskyi/action-setup-postgres@v4
+      with:
+        username: postgres
+        password: test
+        database: todo 
+        port: 5432
     - name: Set up MinGW
       uses: egor-tensin/setup-mingw@v2
       with:
