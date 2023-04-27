@@ -156,4 +156,10 @@ async fn get_by_status() {
     let body: Vec<Task> = read_body_json(resp_filtered).await;
     assert_eq!(body.len(), 2);
     assert_eq!(body[0].status, "endp_test");
+
+    let mut conn = establish_connection().get().unwrap();
+    Task::delete_task(&task.id, &mut conn).unwrap();
+    Task::delete_task(&task_1.id, &mut conn).unwrap();
+
+
 }
