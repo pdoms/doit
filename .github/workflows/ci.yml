@@ -29,6 +29,10 @@ jobs:
               - 5432:5432
     steps:
     - uses: actions/checkout@v3
+    - name: Install diesel migrations cli
+      run: cargo install diesel_cli --no-default-features --features postgres
+    - name: do migrations
+      run: diesel migration run
     - name: Build
       run: cargo build --verbose
     - name: Run tests
