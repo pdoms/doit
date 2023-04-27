@@ -33,7 +33,13 @@ jobs:
       run: cargo install diesel_cli --no-default-features --features postgres
     - name: do migrations
       run: diesel migration run
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
     - name: Build
       run: cargo build --verbose
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
     - name: Run tests
       run: cargo test --verbose
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
