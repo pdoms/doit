@@ -109,13 +109,12 @@ fn test_delete() {
 #[test]
 #[serial]
 fn test_overdue() {
-    let due = chrono::Local::now().naive_local();
-    let two_sec = time::Duration::from_secs(2);
-    thread::sleep(two_sec);
+    let due = chrono::Local::now().naive_local() - chrono::Duration::hours(1);
     let mut conn = establish_connection().get().unwrap();
     let task_init = Task::create("test_11", None, Some(due), &mut conn).unwrap();
     assert_eq!(task_init.status, "overdue");
     let rows = Task::check_overdue(&task_init.id, &mut conn);
+    assert_eq!(rows.unwrap(), 1);
     let tsk = Task::by_id(&task_init.id, &mut conn).unwrap();
     assert_eq!(tsk.status, "overdue");
 }

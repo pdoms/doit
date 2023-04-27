@@ -1,5 +1,6 @@
 use std::fmt;
 
+use diesel::sql_types::is_nullable::IsNullable;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use diesel::dsl::now;
@@ -13,7 +14,7 @@ pub struct Task {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub status:  String,
+    pub status: String,
     pub due: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime
@@ -57,7 +58,7 @@ impl Task {
         }
     }
 
-    pub fn check_overdue(check_id: &str, conn: &mut SqliteConnection) -> Result<usize, diesel::result::Error> {
+    pub fn check_overdue(check_id: &str, conn: &mut PgConnection) -> Result<usize, diesel::result::Error> {
         use super::schema::tasks::dsl::{id, due, status};
         diesel::update(task_dsl)
             .filter(id.eq(check_id))
@@ -66,7 +67,7 @@ impl Task {
             .execute(conn)
     }
 
-    pub fn create(name: &str, description: Option<&str>, due: Option<chrono::NaiveDateTime>, conn: &mut SqliteConnection) -> Option<Self> {
+    pub fn create(name: &str, description: Option<&str>, due: Option<chrono::NaiveDateTime>, conn: &mut PgConnection) -> Option<Self> {
         if let Some(mut task) = Self::by_name(name, conn) {
             if task.due.is_some() {
                 if task.due.unwrap().timestamp_millis() < chrono::Local::now().naive_local().timestamp_millis() {
@@ -85,15 +86,15 @@ impl Task {
         Self::by_id(&new_task.id.as_str(), conn)
     }
 
-    pub fn list(conn: &mut SqliteConnection) -> Vec<Self> {
+    pub fn list(conn: &mut PgConnection) -> Vec<Self> {
         Task::set_overdues(conn);
         task_dsl.load::<Task>(conn).expect("Error loading tasks")
     }
 
 
 
-    pub fn by_id(id: &str, conn: &mut SqliteConnection) -> Option<Self> {
-        Task::check_overdue(id, conn);
+    pub fn by_id(id: &str, conn: &mut PgConnection) -> Option<Self> {
+        Task::check_overdue(id, conn).unwrap();
         if let Ok(record) = task_dsl.find(id).first::<Task>(conn) {
             Some(record)
         } else {
@@ -101,7 +102,7 @@ impl Task {
         }
     }
 
-    pub fn by_name(name_query: &str, conn: &mut SqliteConnection) -> Option<Self> {
+    pub fn by_name(name_query: &str, conn: &mut PgConnection) -> Option<Self> {
         use super::schema::tasks::dsl::name;
         if let Ok(record) = task_dsl.filter(name.eq(name_query)).first::<Task>(conn) {
             Some(record)
@@ -110,7 +111,7 @@ impl Task {
         }
     }
 
-    fn set_overdues(conn: &mut SqliteConnection) {
+    fn set_overdues(conn: &mut PgConnection) {
         use super::schema::tasks::dsl::{due, status};
         diesel::update(task_dsl)
             .filter(due.lt(now))
@@ -118,10 +119,9 @@ impl Task {
             .execute(conn).expect("Failed to run overdue set");
     }
 
-    pub fn update(tsk: Task, conn: &mut SqliteConnection) -> Option<Self> {
+    pub fn update(tsk: Task, conn: &mut PgConnection) -> Option<Self> {
         use super::schema::tasks::dsl::{id, name, description, status, due};
-        match diesel::update(task_dsl)
-            .filter(id.eq(tsk.id.clone()))
+        match diesel::update(task_dsl.find(&tsk.id))
             .set((name.eq(tsk.name), description.eq(tsk.description), status.eq(tsk.status), due.eq(tsk.due)))
             .execute(conn) {
                 Ok(_) => Self::by_id(tsk.id.as_str(), conn),
@@ -129,10 +129,9 @@ impl Task {
             }
     }
 
-    pub fn set_status(task_id: &str, new_status: &str, conn: &mut SqliteConnection) -> Option<Self> {
+    pub fn set_status(task_id: &str, new_status: &str, conn: &mut PgConnection) -> Option<Self> {
         use super::schema::tasks::dsl::{id, status};
-        match diesel::update(task_dsl)
-            .filter(id.eq(task_id))
+        match diesel::update(task_dsl.find(task_id))
             .set(status.eq(new_status))
             .execute(conn) {
                 Ok(_) => {
@@ -143,7 +142,7 @@ impl Task {
             }
     }
 
-    pub fn filter_by_status(filter_status: &str, conn: &mut SqliteConnection) -> Vec<Task> {
+    pub fn filter_by_status(filter_status: &str, conn: &mut PgConnection) -> Vec<Task> {
         use super::schema::tasks::dsl::status;
         Task::set_overdues(conn);
         if let Ok(records) = task_dsl.filter(status.eq(filter_status)).get_results(conn) {
@@ -153,10 +152,9 @@ impl Task {
         }
     }
 
-    pub fn delete_task(trg_id: &str, conn: &mut SqliteConnection) -> Result<usize, diesel::result::Error> {
+    pub fn delete_task(trg_id: &str, conn: &mut PgConnection) -> Result<usize, diesel::result::Error> {
         use super::schema::tasks::dsl::id;
-        diesel::delete(task_dsl)
-            .filter(id.eq(trg_id))
+        diesel::delete(task_dsl.find(trg_id))
             .execute(conn)
     }
 }

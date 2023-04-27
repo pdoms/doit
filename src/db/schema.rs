@@ -2,12 +2,12 @@
 
 diesel::table! {
     tasks (id) {
-        id -> Text,
-        name -> Text,
+        id -> Varchar,
+        name -> Varchar,
         description -> Text,
-        status -> Text,
-        due -> Nullable<Timestamp>,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
+        status -> Varchar,
+        due -> Nullable<Timestamptz>,
+        created_at -> Timestamptz,
+        updated_at -> Timestamptz,
     }
 }
