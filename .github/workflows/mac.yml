@@ -1,8 +1,6 @@
-name: Rust
+name: macos 
 
 on:
-  push:
-    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -13,10 +11,35 @@ jobs:
   build:
 
     runs-on: macos-latest
+    services:
+          postgres:
+            image: postgres
 
+            env:
+              POSTGRES_PASSWORD: test
+              POSTGRES_USER: postgres
+              POSTGRES_DB: todo
+
+            options: >-
+              --health-cmd pg_isready
+              --health-interval 10s
+              --health-timeout 5s
+              --health-retries 5
+            ports:
+              - 5432:5432
     steps:
     - uses: actions/checkout@v3
+    - name: Install diesel migrations cli
+      run: cargo install diesel_cli --no-default-features --features postgres
+    - name: do migrations
+      run: diesel migration run
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
     - name: Build
       run: cargo build --verbose
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
     - name: Run tests
       run: cargo test --verbose
+      env:
+        DATABASE_URL: "postgres://postgres:test@localhost:5432/postgres"
