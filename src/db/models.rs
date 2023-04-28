@@ -1,14 +1,15 @@
 use std::fmt;
 
-use diesel::sql_types::is_nullable::IsNullable;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use diesel::dsl::now;
 use uuid::Uuid;
+
 use super::schema::tasks;
 use super::schema::tasks::dsl::tasks as task_dsl;
+use crate::utils::sort::sort_by_score;
 
-#[derive(Debug, Deserialize, Serialize, Queryable, Insertable, Identifiable)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Queryable, Insertable, Identifiable)]
 #[diesel(table_name = tasks)]
 pub struct Task {
     pub id: String,
@@ -78,7 +79,10 @@ impl Task {
                 return Some(task)
             }
         }
-        let new_task = Task::new(name, description, due);
+        let mut new_task = Task::new(name, description, due);
+        if new_task.due.is_some() && new_task.due.unwrap().timestamp_millis() < chrono::Local::now().naive_local().timestamp_millis() {
+            new_task.status = "overdue".to_string();
+        }
         diesel::insert_into(task_dsl)
             .values(&new_task)
             .execute(conn)
@@ -88,7 +92,10 @@ impl Task {
 
     pub fn list(conn: &mut PgConnection) -> Vec<Self> {
         Task::set_overdues(conn);
-        task_dsl.load::<Task>(conn).expect("Error loading tasks")
+        use super::schema::tasks::dsl::{due, updated_at};
+        task_dsl
+            .order_by((due.asc(), updated_at.desc()))
+            .load::<Task>(conn).expect("Error loading tasks")
     }
 
 
@@ -120,7 +127,7 @@ impl Task {
     }
 
     pub fn update(tsk: Task, conn: &mut PgConnection) -> Option<Self> {
-        use super::schema::tasks::dsl::{id, name, description, status, due};
+        use super::schema::tasks::dsl::{name, description, status, due};
         match diesel::update(task_dsl.find(&tsk.id))
             .set((name.eq(tsk.name), description.eq(tsk.description), status.eq(tsk.status), due.eq(tsk.due)))
             .execute(conn) {
@@ -130,7 +137,7 @@ impl Task {
     }
 
     pub fn set_status(task_id: &str, new_status: &str, conn: &mut PgConnection) -> Option<Self> {
-        use super::schema::tasks::dsl::{id, status};
+        use super::schema::tasks::dsl::{status};
         match diesel::update(task_dsl.find(task_id))
             .set(status.eq(new_status))
             .execute(conn) {
@@ -143,17 +150,32 @@ impl Task {
     }
 
     pub fn filter_by_status(filter_status: &str, conn: &mut PgConnection) -> Vec<Task> {
-        use super::schema::tasks::dsl::status;
+        use super::schema::tasks::dsl::{status, due, updated_at};
         Task::set_overdues(conn);
-        if let Ok(records) = task_dsl.filter(status.eq(filter_status)).get_results(conn) {
+        if let Ok(records) = task_dsl
+            .filter(status.eq(filter_status))
+            .order_by((due.asc(), updated_at.desc()))
+            .get_results(conn) {
             records
         } else {
             vec![]
         }
     }
 
+
+    //global search
+    pub fn text_filter(text: &str, conn: &mut PgConnection) -> Vec<Task> {
+        use super::schema::tasks::dsl::{name, description};
+        let term = format!("%{}%", text);
+        let result = task_dsl
+            .filter(name.ilike(&term))
+            .or_filter(description.ilike(&term))
+            .load::<Task>(conn)
+            .expect("could not query db");
+        sort_by_score(result, text)
+    }
+    
     pub fn delete_task(trg_id: &str, conn: &mut PgConnection) -> Result<usize, diesel::result::Error> {
-        use super::schema::tasks::dsl::id;
         diesel::delete(task_dsl.find(trg_id))
             .execute(conn)
     }

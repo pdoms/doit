@@ -5,9 +5,17 @@ use actix_web::{
 };
 use actix_rt;
 use serde_json::json;
-use crate::{db::{models::Task, establish_connection}};
+use crate::db::{models::Task, establish_connection};
 
-use super::task::{index, create, get_by_id, task_update, set_status, filter_by_status};
+use super::task::{
+    index, 
+    create, 
+    get_by_id, 
+    task_update, 
+    set_status, 
+    filter_by_status,
+    filter_text
+};
 
 #[actix_rt::test]
 async fn create_task_from_api() {
@@ -160,6 +168,57 @@ async fn get_by_status() {
     let mut conn = establish_connection().get().unwrap();
     Task::delete_task(&task.id, &mut conn).unwrap();
     Task::delete_task(&task_1.id, &mut conn).unwrap();
+
+
+}
+
+#[actix_rt::test]
+async fn text_filters() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_text)).await;
+    let test_name = "aa";
+    let request_body = json!({"name": test_name});
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+    let task: Task = read_body_json(resp).await;
+    let test_name_1 = "bb";
+    let test_description_1 = "aloha from aaron";
+    let request_body = json!({"name": test_name_1, "description": test_description_1});
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+
+    let task_1: Task = read_body_json(resp).await;
+    let test_name_2 = "c";
+    let request_body = json!({"name": test_name_2});
+    let resp = TestRequest::post()
+        .uri("/")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+
+    let task_2: Task = read_body_json(resp).await;
+    let query ="/global?term=aa";
+    let query_result = TestRequest::get()
+        .uri(query)
+        .send_request(&mut app)
+        .await;
+
+    assert!(query_result.status().is_success(), "Failed to filter by status");
+    let body: Vec<Task> = read_body_json(query_result).await;
+    
+    assert_eq!(body[0].id, task.id);
+    assert_eq!(body[1].id, task_1.id);
+    assert_eq!(body.len(), 2);
+    let mut conn = establish_connection().get().unwrap();
+    Task::delete_task(&task.id, &mut conn).unwrap();
+    Task::delete_task(&task_1.id, &mut conn).unwrap();
+    Task::delete_task(&task_2.id, &mut conn).unwrap();
 
 
 }
