@@ -1,5 +1,6 @@
 mod db;
 mod services;
+mod utils;
 
 use services::task::{
     create, 
@@ -7,7 +8,9 @@ use services::task::{
     get_by_id, 
     task_update, 
     set_status,
-    filter_by_status
+    filter_by_status,
+    filter_text
+
 };
 
 const HOST: &str = "127.0.0.1";
@@ -36,6 +39,7 @@ async fn main() -> std::io::Result<()> {
             .service(set_status)
             .service(task_update)
             .service(filter_by_status)
+            .service(filter_text)
     })
         .bind((HOST, PORT))?
         .run()

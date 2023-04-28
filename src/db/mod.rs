@@ -1,13 +1,10 @@
 pub mod models;
 pub mod schema;
 
-use chrono::Duration;
-use diesel::connection::SimpleConnection;
 use diesel::pg::Pg;
 use dotenv::dotenv;
 use std::env;
 use std::error::Error;
-use diesel::prelude::*;
 use diesel::PgConnection;
 use diesel::r2d2::Pool;
 use diesel::r2d2::ConnectionManager;

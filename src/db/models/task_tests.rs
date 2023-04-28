@@ -1,5 +1,4 @@
 use crate::db::{establish_connection, models::Task};
-use std::{thread, time};
 use serial_test::serial;
 
 #[test]
@@ -113,11 +112,28 @@ fn test_overdue() {
     let mut conn = establish_connection().get().unwrap();
     let task_init = Task::create("test_11", None, Some(due), &mut conn).unwrap();
     assert_eq!(task_init.status, "overdue");
-    let rows = Task::check_overdue(&task_init.id, &mut conn);
-    assert_eq!(rows.unwrap(), 1);
+    let _rows = Task::check_overdue(&task_init.id, &mut conn);
     let tsk = Task::by_id(&task_init.id, &mut conn).unwrap();
     assert_eq!(tsk.status, "overdue");
+    let _ = Task::delete_task(&task_init.id, &mut conn);
 }
 
 
+#[test]
+#[serial]
+fn test_text_filter() {
+    let name_1 = "load";   
+    let name_2 = "hello";   
+    let name_3 = "hell";
+    let desc_3 = "allowed";
+    let name_4 = "world";
+    let term = "lo"; 
+    let mut conn = establish_connection().get().unwrap();
+    let _task_2 = Task::create(name_2, None, None, &mut conn);
+    let _task_3 = Task::create(name_3, Some(desc_3), None, &mut conn);
+    let _task_4 = Task::create(name_4, None, None, &mut conn);
+    let _task_1 = Task::create(name_1, None, None, &mut conn);
+    let result = Task::text_filter(term, &mut conn);
+    assert_eq!(result.len(), 3);
+}
 

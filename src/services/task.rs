@@ -14,6 +14,10 @@ pub struct TaskForm {
 pub struct FilterStatus {
     status: String
 }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilterText {
+    term: String
+}
 
 #[post("/")]
 pub async fn create(task_form: web::Json<TaskForm>, pool: web::Data<DbPool>) -> impl Responder {
@@ -60,6 +64,16 @@ pub async fn set_status(extracted: web::Path<(String, String)>, pool: web::Data<
 pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
     let result = Task::filter_by_status(&status_query.status, &mut conn);
+    match result.len() {
+        0 => HttpResponse::NotFound().json("No entries found."),
+        _ => HttpResponse::Ok().json(result)
+    }
+}
+
+#[get("/global")]
+pub async fn filter_text(text_query: web::Query<FilterText>,pool: web::Data<DbPool>) -> impl Responder {
+    let mut conn = pool.get().unwrap();
+    let result = Task::text_filter(&text_query.term, &mut conn);
     match result.len() {
         0 => HttpResponse::NotFound().json("No entries found."),
         _ => HttpResponse::Ok().json(result)
