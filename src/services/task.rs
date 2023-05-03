@@ -1,13 +1,51 @@
-use actix_web::{Responder, web, get, post, put, HttpResponse};
-use serde::{Serialize, Deserialize};
+use std::fmt;
+use actix_web::{Responder, web, get, post, put, HttpResponse, http::header::ContentType};
+use serde::{Serialize, Deserialize, de};
+use chrono::NaiveDateTime;
+
 
 use crate::db::{DbPool, models::Task};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TaskForm {
     name: String,
     description: Option<String>,
+    #[serde(deserialize_with = "deserialize_due")]
     due: Option<chrono::NaiveDateTime>
+}
+
+const FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
+fn deserialize_due<'de, D>(deserializer: D) -> Result<Option<NaiveDateTime>, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    struct DueDTVisitor;
+
+    impl<'de> de::Visitor<'de> for DueDTVisitor {
+        type Value = Option<NaiveDateTime>;
+    
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("unix datetime str")
+        }
+    
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            
+            match v {
+                "null" => Ok(None),
+                _ => {
+                    match NaiveDateTime::parse_from_str(v, FORMAT) {
+                        Ok(res) => Ok(Some(res)),
+                        Err(_) => Err(de::Error::custom("dt parse err"))
+                    }
+                }
+            }
+
+        }
+    }
+    deserializer.deserialize_any(DueDTVisitor)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,11 +57,12 @@ pub struct FilterText {
     term: String
 }
 
-#[post("/")]
+#[post("/create")]
 pub async fn create(task_form: web::Json<TaskForm>, pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
+    println!("{:?}", task_form);
     match Task::create(task_form.name.as_str(), task_form.description.as_deref(), task_form.due, &mut conn) {
-        Some(task) => HttpResponse::Created().json(task),
+        Some(task) => HttpResponse::Created().insert_header(ContentType::json()).json(task),
         _ => HttpResponse::InternalServerError().json("Could not create user")
     }
 }
