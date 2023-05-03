@@ -21,11 +21,11 @@ use super::task::{
 async fn create_task_from_api() {
     let test_name = "endpoint_test_1";
     let test_description = "endpoint_test_1 description";
-    let request_body = json!({"name": test_name, "description": test_description});
+    let request_body = json!({"name": test_name, "description": test_description, "due": "2023-05-10T23:01:00.000Z"});
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create)).await;
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
@@ -79,9 +79,9 @@ async fn update_task() {
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(task_update)).await;
     let test_name = "endpoint_test_4";
     let test_description = "endpoint_test_4 description";
-    let request_body = json!({"name": test_name, "description": test_description});
+    let request_body = json!({"name": test_name, "description": test_description, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
@@ -106,9 +106,9 @@ async fn set_status_task() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status)).await;
     let test_name = "endpoint_test_5";
-    let request_body = json!({"name": test_name});
+    let request_body = json!({"name": test_name, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
@@ -128,21 +128,21 @@ async fn get_by_status() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_by_status)).await;
     let test_name = "endpoint_test_6";
-    let request_body = json!({"name": test_name});
+    let request_body = json!({"name": test_name, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
     let task: Task = read_body_json(resp).await;
     let test_name_1 = "endpoint_test_7";
-    let request_body = json!({"name": test_name_1});
+    let request_body = json!({"name": test_name_1, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
-
+    
     let task_1: Task = read_body_json(resp).await;
     let uri = format!("/set/{}/endp_test", task.id);
     let uri_1 = format!("/set/{}/endp_test", task_1.id);
@@ -177,27 +177,27 @@ async fn text_filters() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_text)).await;
     let test_name = "aa";
-    let request_body = json!({"name": test_name});
+    let request_body = json!({"name": test_name, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
     let task: Task = read_body_json(resp).await;
     let test_name_1 = "bb";
     let test_description_1 = "aloha from aaron";
-    let request_body = json!({"name": test_name_1, "description": test_description_1});
+    let request_body = json!({"name": test_name_1, "description": test_description_1, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
 
     let task_1: Task = read_body_json(resp).await;
     let test_name_2 = "c";
-    let request_body = json!({"name": test_name_2});
+    let request_body = json!({"name": test_name_2, "due": "null"});
     let resp = TestRequest::post()
-        .uri("/")
+        .uri("/create")
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
