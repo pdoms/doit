@@ -65,13 +65,18 @@ fn do_update() {
     let mut conn = establish_connection().get().unwrap();
     let name= "test_6";
     let description = "test 6 description";
-    let task_init = Task::create(name, Some(description), None, &mut conn).unwrap();
+    let due = chrono::Local::now().naive_local() - chrono::Duration::hours(1);
+    let task_init = Task::create(name, Some(description), Some(due), &mut conn).unwrap();
     let task = Task::by_id(task_init.id.as_str(), &mut conn).unwrap();
     let mut update = Task::new("test_6_upd", Some("test 6 description update."), None);
     update.id = task.id.clone();
+    update.due = Some(chrono::Local::now().naive_local() + chrono::Duration::hours(1));
+    assert_eq!(task.status, "overdue");
     let result = Task::update(update, &mut conn).unwrap();
     assert_eq!(result.name.as_str(), "test_6_upd");
     assert_eq!(result.description.as_str(), "test 6 description update.");
+    assert_eq!(result.status.as_str(), "created");
+
 }
 
 #[test]
