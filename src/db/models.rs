@@ -1,5 +1,4 @@
 use std::fmt;
-
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
 use diesel::dsl::now;
@@ -126,8 +125,21 @@ impl Task {
             .execute(conn).expect("Failed to run overdue set");
     }
 
-    pub fn update(tsk: Task, conn: &mut PgConnection) -> Option<Self> {
+    pub fn update(mut tsk: Task, conn: &mut PgConnection) -> Option<Self> {
         use super::schema::tasks::dsl::{name, description, status, due};
+
+        match tsk.due {
+            Some(d) => {
+                let ts_now = chrono::Local::now().naive_local();
+                if d.timestamp_millis() - ts_now.timestamp_millis() > 0 {
+                    tsk.status = "created".to_string();
+                } else {
+                    tsk.status = "overdue".to_string()
+                }
+            }
+            None => {}
+        }
+
         match diesel::update(task_dsl.find(&tsk.id))
             .set((name.eq(tsk.name), description.eq(tsk.description), status.eq(tsk.status), due.eq(tsk.due)))
             .execute(conn) {
