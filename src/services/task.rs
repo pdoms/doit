@@ -14,7 +14,22 @@ pub struct TaskForm {
     due: Option<chrono::NaiveDateTime>
 }
 
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskUpdate {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub status: String,
+    #[serde(deserialize_with = "deserialize_due")]
+    pub due: Option<chrono::NaiveDateTime>,
+    #[serde(deserialize_with = "deserialize_ats")]
+    pub created_at: chrono::NaiveDateTime,
+    #[serde(deserialize_with = "deserialize_ats")]
+    pub updated_at: chrono::NaiveDateTime
+}
 const FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.fZ";
+const FORMATNAIVE: &str = "%Y-%m-%dT%H:%M:%S%.f";
 fn deserialize_due<'de, D>(deserializer: D) -> Result<Option<NaiveDateTime>, D::Error>
 where
     D: de::Deserializer<'de>,
@@ -47,6 +62,39 @@ where
     }
     deserializer.deserialize_any(DueDTVisitor)
 }
+fn deserialize_ats<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
+where
+    D: de::Deserializer<'de>,
+{
+    struct DueDTVisitor;
+
+    impl<'de> de::Visitor<'de> for DueDTVisitor {
+        type Value = NaiveDateTime;
+    
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("unix datetime str")
+        }
+    
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            if v.ends_with("Z") {
+            match NaiveDateTime::parse_from_str(v, FORMAT) {
+                Ok(res) => Ok(res),
+                Err(_) => Err(de::Error::custom("dt parse err"))
+            }
+            } else {
+            match NaiveDateTime::parse_from_str(v, FORMATNAIVE) {
+                Ok(res) => Ok(res),
+                Err(_) => Err(de::Error::custom("dt parse err"))
+            }
+            }
+        }
+    }
+    deserializer.deserialize_any(DueDTVisitor)
+}
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilterStatus {
@@ -60,7 +108,6 @@ pub struct FilterText {
 #[post("/create")]
 pub async fn create(task_form: web::Json<TaskForm>, pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
-    println!("{:?}", task_form);
     match Task::create(task_form.name.as_str(), task_form.description.as_deref(), task_form.due, &mut conn) {
         Some(task) => HttpResponse::Created().insert_header(ContentType::json()).json(task),
         _ => HttpResponse::InternalServerError().json("Could not create user")
@@ -82,10 +129,10 @@ pub async fn get_by_id(id: web::Path<String>, pool: web::Data<DbPool>) -> impl R
 }
 
 #[put("/")]
-pub async fn task_update(task: web::Json<Task>, pool: web::Data<DbPool>) -> impl Responder {
+pub async fn task_update(task: web::Json<TaskUpdate>, pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
     match Task::update(task.into_inner(), &mut conn) {
-        Some(tsk) => HttpResponse::Ok().json(tsk),
+        Some(tsk) => HttpResponse::Ok().insert_header(ContentType::json()).json(tsk),
         _ => HttpResponse::NotFound().json("Not Found")
     }
 }

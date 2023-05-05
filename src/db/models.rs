@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use super::schema::tasks;
 use super::schema::tasks::dsl::tasks as task_dsl;
+use crate::services::task::TaskUpdate;
 use crate::utils::sort::sort_by_score;
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Queryable, Insertable, Identifiable)]
@@ -125,7 +126,7 @@ impl Task {
             .execute(conn).expect("Failed to run overdue set");
     }
 
-    pub fn update(mut tsk: Task, conn: &mut PgConnection) -> Option<Self> {
+    pub fn update(mut tsk: TaskUpdate, conn: &mut PgConnection) -> Option<Self> {
         use super::schema::tasks::dsl::{name, description, status, due};
 
         match tsk.due {

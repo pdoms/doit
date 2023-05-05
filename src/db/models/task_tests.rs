@@ -1,4 +1,4 @@
-use crate::db::{establish_connection, models::Task};
+use crate::{db::{establish_connection, models::Task}, services::task::TaskUpdate};
 use serial_test::serial;
 
 #[test]
@@ -68,9 +68,15 @@ fn do_update() {
     let due = chrono::Local::now().naive_local() - chrono::Duration::hours(1);
     let task_init = Task::create(name, Some(description), Some(due), &mut conn).unwrap();
     let task = Task::by_id(task_init.id.as_str(), &mut conn).unwrap();
-    let mut update = Task::new("test_6_upd", Some("test 6 description update."), None);
-    update.id = task.id.clone();
-    update.due = Some(chrono::Local::now().naive_local() + chrono::Duration::hours(1));
+    let update = TaskUpdate {
+        id: task.id.clone(),
+        name: "test_6_upd".to_string(),
+        description:  "test 6 description update.".to_owned(),
+        due: Some(chrono::Local::now().naive_local() + chrono::Duration::hours(1)),
+        status: "created".to_string(),
+        created_at: task_init.created_at,
+        updated_at: task_init.updated_at
+    };
     assert_eq!(task.status, "overdue");
     let result = Task::update(update, &mut conn).unwrap();
     assert_eq!(result.name.as_str(), "test_6_upd");

@@ -6,6 +6,7 @@ use actix_web::{
 use actix_rt;
 use serde_json::json;
 use crate::db::{models::Task, establish_connection};
+use super::task::TaskUpdate;
 
 use super::task::{
     index, 
@@ -16,6 +17,7 @@ use super::task::{
     filter_by_status,
     filter_text
 };
+
 
 #[actix_rt::test]
 async fn create_task_from_api() {
@@ -85,20 +87,27 @@ async fn update_task() {
         .set_json(&request_body)
         .send_request(&mut app)
         .await;
-    let mut task: Task = read_body_json(resp).await;
-    task.name = "endpoint_test_4_update".to_string();
-    let ser = serde_json::to_string(&task).unwrap();
-    let val: serde_json::Value = serde_json::from_str(ser.as_str()).unwrap();
+    let task: Task = read_body_json(resp).await;
+    let tsk = json!({
+        "id": task.id.clone(),
+        "name": "endpoint_test_4_update".to_string(),
+        "description": "endpoint_test_4 description update.".to_owned(),
+        "due": "null",
+        "status": "created".to_string(),
+        "created_at":"2023-05-05T11:43:17.082Z",
+        "updated_at": "2023-05-05T11:43:17.082Z"
+    });
+
     let resp_upd = TestRequest::put()
         .uri("/")
-        .set_json(val)
+        .set_json(tsk)
         .send_request(&mut app)
         .await;
     assert!(resp_upd.status().is_success(), "Error updating task");
     let updated_task: Task = read_body_json(resp_upd).await;
     assert_eq!(updated_task.id, task.id);
     assert_eq!(updated_task.name, "endpoint_test_4_update".to_string());
-    assert_eq!(updated_task.description, "endpoint_test_4 description".to_string());
+    assert_eq!(updated_task.description, "endpoint_test_4 description update.".to_string());
 }
 
 #[actix_rt::test]
