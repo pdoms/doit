@@ -1,6 +1,8 @@
 name: win 
 
 on:
+  push:
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
