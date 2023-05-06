@@ -6,7 +6,7 @@ struct TaskScored {
     id: String,
     name: String,
     description: String,
-    status: String,
+    status: i32,
     due: Option<chrono::NaiveDateTime>,
     created_at: chrono::NaiveDateTime,
     updated_at: chrono::NaiveDateTime,

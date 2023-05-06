@@ -20,7 +20,7 @@ pub struct TaskUpdate {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub status: String,
+    pub status: i32,
     #[serde(deserialize_with = "deserialize_due")]
     pub due: Option<chrono::NaiveDateTime>,
     #[serde(deserialize_with = "deserialize_ats")]
@@ -98,7 +98,7 @@ where
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilterStatus {
-    status: String
+    status: i32 
 }
 #[derive(Debug, Serialize, Deserialize)]
 pub struct FilterText {
@@ -138,9 +138,9 @@ pub async fn task_update(task: web::Json<TaskUpdate>, pool: web::Data<DbPool>) -
 }
 
 #[get("/set/{id}/{status}")]
-pub async fn set_status(extracted: web::Path<(String, String)>, pool: web::Data<DbPool>) -> impl Responder {
+pub async fn set_status(extracted: web::Path<(String, i32)>, pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
-    match Task::set_status(&extracted.0, &extracted.1, &mut conn) {
+    match Task::set_status(&extracted.0, extracted.1, &mut conn) {
         Some(tsk) => HttpResponse::Ok().json(tsk),
         _ => HttpResponse::NotFound().json("Not Found")
     }
@@ -149,7 +149,7 @@ pub async fn set_status(extracted: web::Path<(String, String)>, pool: web::Data<
 #[get("/filter")]
 pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::Data<DbPool>) -> impl Responder {
     let mut conn = pool.get().unwrap();
-    let result = Task::filter_by_status(&status_query.status, &mut conn);
+    let result = Task::filter_by_status(status_query.status, &mut conn);
     match result.len() {
         0 => HttpResponse::NotFound().json("No entries found."),
         _ => HttpResponse::Ok().json(result)

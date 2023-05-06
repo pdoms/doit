@@ -1,7 +1,7 @@
 use std::fmt;
 use serde::{Deserialize, Serialize};
 use diesel::prelude::*;
-use diesel::dsl::now;
+use diesel::dsl::{now, not};
 use uuid::Uuid;
 
 use super::schema::tasks;
@@ -15,7 +15,7 @@ pub struct Task {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub status: String,
+    pub status: i32,
     pub due: Option<chrono::NaiveDateTime>,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime
@@ -39,7 +39,27 @@ impl fmt::Display for TaskStatus {
 
         }
     }
-} 
+}
+
+impl TaskStatus {
+    pub fn to_store(&self) -> i32 {
+        match *self {
+            TaskStatus::Created     => 1,
+            TaskStatus::Overdue     => 0,
+            TaskStatus::Done        => 2,
+            TaskStatus::Deleted     => 3,
+        }
+    }
+    pub fn from_store(status: i32) -> Self {
+        match status {
+            1 => TaskStatus::Created,
+            0 => TaskStatus::Overdue,
+            2 => TaskStatus::Done,
+            3 => TaskStatus::Deleted,
+            _ => unreachable!("Bug in TaskStatus::from_store()")
+        }
+     }
+}
 
 impl Task {
 
@@ -52,7 +72,7 @@ impl Task {
             id,
             name: name.to_string(),
             description, 
-            status: TaskStatus::Created.to_string(),
+            status: TaskStatus::Created.to_store(),
             due,
             created_at: ts,
             updated_at: ts
@@ -63,8 +83,10 @@ impl Task {
         use super::schema::tasks::dsl::{id, due, status};
         diesel::update(task_dsl)
             .filter(id.eq(check_id))
+            .filter(not(status.eq(TaskStatus::Done.to_store())))
+            .filter(not(status.eq(TaskStatus::Deleted.to_store())))
             .filter(due.lt(now))
-            .set(status.eq("overdue"))
+            .set(status.eq(TaskStatus::Overdue.to_store()))
             .execute(conn)
     }
 
@@ -72,7 +94,7 @@ impl Task {
         if let Some(mut task) = Self::by_name(name, conn) {
             if task.due.is_some() {
                 if task.due.unwrap().timestamp_millis() < chrono::Local::now().naive_local().timestamp_millis() {
-                    task.status = "overdue".to_string();
+                    task.status = TaskStatus::Overdue.to_store();
                 }
                 return Some(task)
             } else {
@@ -81,7 +103,7 @@ impl Task {
         }
         let mut new_task = Task::new(name, description, due);
         if new_task.due.is_some() && new_task.due.unwrap().timestamp_millis() < chrono::Local::now().naive_local().timestamp_millis() {
-            new_task.status = "overdue".to_string();
+            new_task.status = TaskStatus::Overdue.to_store();
         }
         diesel::insert_into(task_dsl)
             .values(&new_task)
@@ -92,9 +114,9 @@ impl Task {
 
     pub fn list(conn: &mut PgConnection) -> Vec<Self> {
         Task::set_overdues(conn);
-        use super::schema::tasks::dsl::{due, updated_at};
+        use super::schema::tasks::dsl::{due, updated_at, status};
         task_dsl
-            .order_by((due.asc(), updated_at.desc()))
+            .order_by((due.asc(), status.asc(), updated_at.desc()))
             .load::<Task>(conn).expect("Error loading tasks")
     }
 
@@ -122,7 +144,7 @@ impl Task {
         use super::schema::tasks::dsl::{due, status};
         diesel::update(task_dsl)
             .filter(due.lt(now))
-            .set(status.eq("overdue"))
+            .set(status.eq(TaskStatus::Overdue.to_store()))
             .execute(conn).expect("Failed to run overdue set");
     }
 
@@ -133,9 +155,9 @@ impl Task {
             Some(d) => {
                 let ts_now = chrono::Local::now().naive_local();
                 if d.timestamp_millis() - ts_now.timestamp_millis() > 0 {
-                    tsk.status = "created".to_string();
+                    tsk.status = TaskStatus::Created.to_store();
                 } else {
-                    tsk.status = "overdue".to_string()
+                    tsk.status = TaskStatus::Overdue.to_store();
                 }
             }
             None => {}
@@ -149,8 +171,9 @@ impl Task {
             }
     }
 
-    pub fn set_status(task_id: &str, new_status: &str, conn: &mut PgConnection) -> Option<Self> {
-        use super::schema::tasks::dsl::{status};
+    pub fn set_status(task_id: &str, new_status: i32, conn: &mut PgConnection) -> Option<Self> {
+        use super::schema::tasks::dsl::status;
+        
         match diesel::update(task_dsl.find(task_id))
             .set(status.eq(new_status))
             .execute(conn) {
@@ -162,12 +185,12 @@ impl Task {
             }
     }
 
-    pub fn filter_by_status(filter_status: &str, conn: &mut PgConnection) -> Vec<Task> {
+    pub fn filter_by_status(filter_status: i32, conn: &mut PgConnection) -> Vec<Task> {
         use super::schema::tasks::dsl::{status, due, updated_at};
         Task::set_overdues(conn);
         if let Ok(records) = task_dsl
             .filter(status.eq(filter_status))
-            .order_by((due.asc(), updated_at.desc()))
+            .order_by((due.asc(), status.asc(), updated_at.desc()))
             .get_results(conn) {
             records
         } else {

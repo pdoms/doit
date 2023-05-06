@@ -5,7 +5,7 @@ diesel::table! {
         id -> Varchar,
         name -> Varchar,
         description -> Text,
-        status -> Varchar,
+        status -> Int4,
         due -> Nullable<Timestamptz>,
         created_at -> Timestamptz,
         updated_at -> Timestamptz,

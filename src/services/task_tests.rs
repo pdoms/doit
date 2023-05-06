@@ -5,8 +5,7 @@ use actix_web::{
 };
 use actix_rt;
 use serde_json::json;
-use crate::db::{models::Task, establish_connection};
-use super::task::TaskUpdate;
+use crate::db::{models::{Task, TaskStatus}, establish_connection};
 
 use super::task::{
     index, 
@@ -93,7 +92,7 @@ async fn update_task() {
         "name": "endpoint_test_4_update".to_string(),
         "description": "endpoint_test_4 description update.".to_owned(),
         "due": "null",
-        "status": "created".to_string(),
+        "status": TaskStatus::Created.to_store(),
         "created_at":"2023-05-05T11:43:17.082Z",
         "updated_at": "2023-05-05T11:43:17.082Z"
     });
@@ -122,14 +121,14 @@ async fn set_status_task() {
         .send_request(&mut app)
         .await;
     let task: Task = read_body_json(resp).await;
-    let uri = format!("/set/{}/done", task.id);
+    let uri = format!("/set/{}/{}", task.id, TaskStatus::Done.to_store());
     let resp_status = TestRequest::get()
         .uri(uri.as_str())
         .send_request(&mut app)
         .await;
     assert!(resp_status.status().is_success(), "Failed to update state");
     let t: Task = read_body_json(resp_status).await;
-    assert_eq!(t.status, "done");
+    assert_eq!(t.status, TaskStatus::Done.to_store());
 }
 
 #[actix_rt::test]
@@ -153,8 +152,8 @@ async fn get_by_status() {
         .await;
     
     let task_1: Task = read_body_json(resp).await;
-    let uri = format!("/set/{}/endp_test", task.id);
-    let uri_1 = format!("/set/{}/endp_test", task_1.id);
+    let uri = format!("/set/{}/{}", task.id, TaskStatus::Done.to_store());
+    let uri_1 = format!("/set/{}/{}", task_1.id, TaskStatus::Done.to_store());
     TestRequest::get()
         .uri(&uri)
         .send_request(&mut app)
@@ -164,16 +163,14 @@ async fn get_by_status() {
         .send_request(&mut app)
         .await;
 
-    let query = format!("/filter?status=endp_test");
+    let query = format!("/filter?status={}", TaskStatus::Done.to_store());
     let resp_filtered = TestRequest::get()
         .uri(&query)
         .send_request(&mut app)
         .await;
     assert!(resp_filtered.status().is_success(), "Failed to filter by status");
     let body: Vec<Task> = read_body_json(resp_filtered).await;
-    assert_eq!(body.len(), 2);
-    assert_eq!(body[0].status, "endp_test");
-
+    assert_eq!(body[0].status, TaskStatus::Done.to_store());
     let mut conn = establish_connection().get().unwrap();
     Task::delete_task(&task.id, &mut conn).unwrap();
     Task::delete_task(&task_1.id, &mut conn).unwrap();

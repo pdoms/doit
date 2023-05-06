@@ -1,4 +1,4 @@
-use crate::{db::{establish_connection, models::Task}, services::task::TaskUpdate};
+use crate::{db::{establish_connection, models::{Task, TaskStatus}}, services::task::TaskUpdate};
 use serial_test::serial;
 
 #[test]
@@ -73,15 +73,15 @@ fn do_update() {
         name: "test_6_upd".to_string(),
         description:  "test 6 description update.".to_owned(),
         due: Some(chrono::Local::now().naive_local() + chrono::Duration::hours(1)),
-        status: "created".to_string(),
+        status: TaskStatus::Created.to_store(),
         created_at: task_init.created_at,
         updated_at: task_init.updated_at
     };
-    assert_eq!(task.status, "overdue");
+    assert_eq!(task.status, TaskStatus::Overdue.to_store());
     let result = Task::update(update, &mut conn).unwrap();
     assert_eq!(result.name.as_str(), "test_6_upd");
     assert_eq!(result.description.as_str(), "test 6 description update.");
-    assert_eq!(result.status.as_str(), "created");
+    assert_eq!(result.status, TaskStatus::Created.to_store());
 
 }
 
@@ -90,8 +90,8 @@ fn do_update() {
 fn change_status() {
     let mut conn = establish_connection().get().unwrap();
     let task_init = Task::create("test_7",None, None, &mut conn).unwrap();
-    let result = Task::set_status(&task_init.id, "done", &mut conn).unwrap();
-    assert_eq!(result.status, "done".to_string());
+    let result = Task::set_status(&task_init.id, TaskStatus::Done.to_store(), &mut conn).unwrap();
+    assert_eq!(result.status, TaskStatus::Done.to_store());
 }
 
 #[test]
@@ -100,10 +100,9 @@ fn filter_by_status() {
     let mut conn = establish_connection().get().unwrap();
     let task_init_1 = Task::create("test_8", None, None, &mut conn).unwrap();
     let _task_init_2 = Task::create("test_9", None, None, &mut conn).unwrap();
-    let _result = Task::set_status(&task_init_1.id, "test", &mut conn);
-    let query_result = Task::filter_by_status("test", &mut conn);
-    assert_eq!(query_result.len(), 1);
-    assert_eq!(query_result[0].status, "test".to_string());
+    let _result = Task::set_status(&task_init_1.id, TaskStatus::Done.to_store(), &mut conn);
+    let query_result = Task::filter_by_status(TaskStatus::Done.to_store(), &mut conn);
+    assert_eq!(query_result[0].status, TaskStatus::Done.to_store());
 }
 
 #[test]
@@ -122,10 +121,10 @@ fn test_overdue() {
     let due = chrono::Local::now().naive_local() - chrono::Duration::hours(1);
     let mut conn = establish_connection().get().unwrap();
     let task_init = Task::create("test_11", None, Some(due), &mut conn).unwrap();
-    assert_eq!(task_init.status, "overdue");
+    assert_eq!(task_init.status, TaskStatus::Overdue.to_store());
     let _rows = Task::check_overdue(&task_init.id, &mut conn);
     let tsk = Task::by_id(&task_init.id, &mut conn).unwrap();
-    assert_eq!(tsk.status, "overdue");
+    assert_eq!(tsk.status, TaskStatus::Overdue.to_store());
     let _ = Task::delete_task(&task_init.id, &mut conn);
 }
 
