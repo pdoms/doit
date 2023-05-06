@@ -34,6 +34,7 @@ async fn create_task_from_api() {
     let task: Task = read_body_json(resp).await;
     assert_eq!(task.name, test_name);
     assert_eq!(task.description, test_description);
+    assert_eq!(task.due, Some(chrono::NaiveDateTime::parse_from_str("2023-05-10T23:01:00.000Z", "%Y-%m-%dT%H:%M:%S%.fZ").unwrap()));
 }
 
 #[actix_rt::test]
@@ -80,7 +81,7 @@ async fn update_task() {
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(task_update)).await;
     let test_name = "endpoint_test_4";
     let test_description = "endpoint_test_4 description";
-    let request_body = json!({"name": test_name, "description": test_description, "due": "null"});
+    let request_body = json!({"name": test_name, "description": test_description, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -91,7 +92,7 @@ async fn update_task() {
         "id": task.id.clone(),
         "name": "endpoint_test_4_update".to_string(),
         "description": "endpoint_test_4 description update.".to_owned(),
-        "due": "null",
+        "due": null,
         "status": TaskStatus::Created.to_store(),
         "created_at":"2023-05-05T11:43:17.082Z",
         "updated_at": "2023-05-05T11:43:17.082Z"
@@ -114,7 +115,7 @@ async fn set_status_task() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status)).await;
     let test_name = "endpoint_test_5";
-    let request_body = json!({"name": test_name, "due": "null"});
+    let request_body = json!({"name": test_name, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -136,7 +137,7 @@ async fn get_by_status() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_by_status)).await;
     let test_name = "endpoint_test_6";
-    let request_body = json!({"name": test_name, "due": "null"});
+    let request_body = json!({"name": test_name, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -144,7 +145,7 @@ async fn get_by_status() {
         .await;
     let task: Task = read_body_json(resp).await;
     let test_name_1 = "endpoint_test_7";
-    let request_body = json!({"name": test_name_1, "due": "null"});
+    let request_body = json!({"name": test_name_1, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -183,7 +184,7 @@ async fn text_filters() {
     let conn_pool = establish_connection();
     let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_text)).await;
     let test_name = "aa";
-    let request_body = json!({"name": test_name, "due": "null"});
+    let request_body = json!({"name": test_name, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -192,7 +193,7 @@ async fn text_filters() {
     let task: Task = read_body_json(resp).await;
     let test_name_1 = "bb";
     let test_description_1 = "aloha from aaron";
-    let request_body = json!({"name": test_name_1, "description": test_description_1, "due": "null"});
+    let request_body = json!({"name": test_name_1, "description": test_description_1, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)
@@ -201,7 +202,7 @@ async fn text_filters() {
 
     let task_1: Task = read_body_json(resp).await;
     let test_name_2 = "c";
-    let request_body = json!({"name": test_name_2, "due": "null"});
+    let request_body = json!({"name": test_name_2, "due": null});
     let resp = TestRequest::post()
         .uri("/create")
         .set_json(&request_body)

@@ -36,7 +36,6 @@ impl fmt::Display for TaskStatus {
             TaskStatus::Overdue     => write!(f, "overdue"),
             TaskStatus::Done        => write!(f, "done"),
             TaskStatus::Deleted     => write!(f, "deleted"),
-
         }
     }
 }

@@ -42,25 +42,31 @@ where
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             formatter.write_str("unix datetime str")
         }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error, {
+            Ok(None)
+        }
+
+        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: serde::Deserializer<'de>, {
+                deserializer.deserialize_any(DueDTVisitor)
+        }
     
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
             E: de::Error,
         {
             
-            match v {
-                "null" => Ok(None),
-                _ => {
-                    match NaiveDateTime::parse_from_str(v, FORMAT) {
+            match NaiveDateTime::parse_from_str(v, FORMAT) {
                         Ok(res) => Ok(Some(res)),
                         Err(_) => Err(de::Error::custom("dt parse err"))
                     }
-                }
             }
-
-        }
     }
-    deserializer.deserialize_any(DueDTVisitor)
+    deserializer.deserialize_option(DueDTVisitor)
 }
 fn deserialize_ats<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
 where
