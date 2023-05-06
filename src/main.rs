@@ -10,7 +10,6 @@ use services::task::{
     set_status,
     filter_by_status,
     filter_text
-
 };
 
 const HOST: &str = "127.0.0.1";
@@ -34,12 +33,12 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(web::Data::new(conn_pool))
             .service(index)
+            .service(filter_by_status)
+            .service(filter_text)
             .service(create)
             .service(get_by_id)
             .service(set_status)
             .service(task_update)
-            .service(filter_by_status)
-            .service(filter_text)
     })
         .bind((HOST, PORT))?
         .run()

@@ -164,6 +164,7 @@ pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::
 
 #[get("/global")]
 pub async fn filter_text(text_query: web::Query<FilterText>,pool: web::Data<DbPool>) -> impl Responder {
+    println!("got here");
     let mut conn = pool.get().unwrap();
     let result = Task::text_filter(&text_query.term, &mut conn);
     match result.len() {
