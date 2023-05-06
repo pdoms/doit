@@ -116,6 +116,7 @@ impl Task {
         Task::set_overdues(conn);
         use super::schema::tasks::dsl::{due, updated_at, status};
         task_dsl
+            .filter(not(status.eq(TaskStatus::Deleted.to_store())))
             .order_by((due.asc(), status.asc(), updated_at.desc()))
             .load::<Task>(conn).expect("Error loading tasks")
     }
@@ -154,10 +155,10 @@ impl Task {
         match tsk.due {
             Some(d) => {
                 let ts_now = chrono::Local::now().naive_local();
-                if d.timestamp_millis() - ts_now.timestamp_millis() > 0 {
-                    tsk.status = TaskStatus::Created.to_store();
-                } else {
+                if d.timestamp_millis() < ts_now.timestamp_millis() {
                     tsk.status = TaskStatus::Overdue.to_store();
+                } else {
+                    tsk.status = TaskStatus::Created.to_store();
                 }
             }
             None => {}
