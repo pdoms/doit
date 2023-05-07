@@ -8,7 +8,6 @@ use services::task::{
     get_by_id, 
     task_update, 
     set_status,
-    filter_by_status,
     filter_text
 };
 
@@ -33,7 +32,6 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .app_data(web::Data::new(conn_pool))
             .service(index)
-            .service(filter_by_status)
             .service(filter_text)
             .service(create)
             .service(get_by_id)

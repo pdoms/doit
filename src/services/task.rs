@@ -152,21 +152,20 @@ pub async fn set_status(extracted: web::Path<(String, i32)>, pool: web::Data<DbP
     }
 }
 
-#[get("/filter")]
-pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::Data<DbPool>) -> impl Responder {
-    let mut conn = pool.get().unwrap();
-    let result = Task::filter_by_status(status_query.status, &mut conn);
-    match result.len() {
-        0 => HttpResponse::NotFound().json("No entries found."),
-        _ => HttpResponse::Ok().json(result)
-    }
-}
+//#[get("/filter")]
+//pub async fn filter_by_status(status_query: web::Query<FilterStatus>,pool: web::Data<DbPool>) -> impl Responder {
+//    let mut conn = pool.get().unwrap();
+//    let result = Task::filter_by_status(status_query.status, &mut conn);
+//    match result.len() {
+//        0 => HttpResponse::NotFound().json("No entries found."),
+//        _ => HttpResponse::Ok().json(result)
+//    }
+//}
 
-#[get("/global")]
+#[get("/filter")]
 pub async fn filter_text(text_query: web::Query<FilterText>,pool: web::Data<DbPool>) -> impl Responder {
-    println!("got here");
     let mut conn = pool.get().unwrap();
-    let result = Task::text_filter(&text_query.term, &mut conn);
+    let result = Task::filter(&text_query.term, &mut conn);
     match result.len() {
         0 => HttpResponse::NotFound().json("No entries found."),
         _ => HttpResponse::Ok().json(result)

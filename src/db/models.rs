@@ -1,13 +1,14 @@
 use std::fmt;
+use diesel::sql_types::SqlType;
 use serde::{Deserialize, Serialize};
-use diesel::prelude::*;
+use diesel::{prelude::*, debug_query};
 use diesel::dsl::{now, not};
 use uuid::Uuid;
 
 use super::schema::tasks;
 use super::schema::tasks::dsl::tasks as task_dsl;
 use crate::services::task::TaskUpdate;
-use crate::utils::sort::sort_by_score;
+use crate::utils::{sort::sort_by_score, parse::parse_search_value};
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Queryable, Insertable, Identifiable)]
 #[diesel(table_name = tasks)]
@@ -49,13 +50,13 @@ impl TaskStatus {
             TaskStatus::Deleted     => 3,
         }
     }
-    pub fn from_store(status: i32) -> Self {
-        match status {
-            1 => TaskStatus::Created,
-            0 => TaskStatus::Overdue,
-            2 => TaskStatus::Done,
-            3 => TaskStatus::Deleted,
-            _ => unreachable!("Bug in TaskStatus::from_store()")
+    pub fn from_str(status: &str) -> Option<Self> {
+        match status.to_ascii_lowercase().as_str() {
+            "created" => Some(TaskStatus::Created),
+            "overdue" => Some(TaskStatus::Overdue),
+            "done"    => Some(TaskStatus::Done),
+            "deleted" => Some(TaskStatus::Deleted),
+            _         => None 
         }
      }
 }
@@ -185,18 +186,59 @@ impl Task {
             }
     }
 
-    pub fn filter_by_status(filter_status: i32, conn: &mut PgConnection) -> Vec<Task> {
-        use super::schema::tasks::dsl::{status, due, updated_at};
-        Task::set_overdues(conn);
-        if let Ok(records) = task_dsl
-            .filter(status.eq(filter_status))
-            .order_by((due.asc(), status.asc(), updated_at.desc()))
-            .get_results(conn) {
-            records
+
+    pub fn filter(text: &str, conn: &mut PgConnection) -> Vec<Task> {
+        if text.starts_with(":") {
+            use super::schema::tasks::dsl::{status, due, updated_at};
+            Task::set_overdues(conn);
+            let (_column, values) = parse_search_value(text);
+            let mut statuses = Vec::<i32>::new();
+            for value in values {
+                if let Some(stat) = TaskStatus::from_str(&value) {
+                    statuses.push(stat.to_store())
+                }
+            }
+            let length = statuses.len();
+            if  length > 0 {
+                let base = Box::new(status.eq(statuses[0]));
+                let query: Box<dyn BoxableExpression<tasks::table, diesel::pg::Pg, SqlType = diesel::sql_types::Bool>> = statuses 
+                    .into_iter()
+                    .map(|st| status.eq(st))
+                    .fold(base, |query, item| {
+                        Box::new(query.or(item))
+                    });
+                if let Ok(records) = task_dsl
+                        .filter(query)
+                        .order((due.asc(), status.asc(), updated_at.desc()))
+                        .get_results(conn) {
+                        records
+                } else {
+                    vec![]
+                }
+            } else {
+                vec![]
+            }
         } else {
-            vec![]
+            Task::text_filter(text, conn)
         }
     }
+    
+
+
+
+
+    //pub fn filter_by_status(filter_status: i32, conn: &mut PgConnection) -> Vec<Task> {
+    //    use super::schema::tasks::dsl::{status, due, updated_at};
+    //    Task::set_overdues(conn);
+    //    if let Ok(records) = task_dsl
+    //        .filter(status.eq(filter_status))
+    //        .order_by((due.asc(), status.asc(), updated_at.desc()))
+    //        .get_results(conn) {
+    //        records
+    //    } else {
+    //        vec![]
+    //    }
+    //}
 
 
     //global search
@@ -216,6 +258,8 @@ impl Task {
             .execute(conn)
     }
 }
+
+
 
 #[cfg(test)]
 mod task_tests;

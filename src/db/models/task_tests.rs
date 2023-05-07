@@ -94,16 +94,16 @@ fn change_status() {
     assert_eq!(result.status, TaskStatus::Done.to_store());
 }
 
-#[test]
-#[serial]
-fn filter_by_status() {
-    let mut conn = establish_connection().get().unwrap();
-    let task_init_1 = Task::create("test_8", None, None, &mut conn).unwrap();
-    let _task_init_2 = Task::create("test_9", None, None, &mut conn).unwrap();
-    let _result = Task::set_status(&task_init_1.id, TaskStatus::Done.to_store(), &mut conn);
-    let query_result = Task::filter_by_status(TaskStatus::Done.to_store(), &mut conn);
-    assert_eq!(query_result[0].status, TaskStatus::Done.to_store());
-}
+//#[test]
+//#[serial]
+//fn filter_by_status() {
+//    let mut conn = establish_connection().get().unwrap();
+//    let task_init_1 = Task::create("test_8", None, None, &mut conn).unwrap();
+//    let _task_init_2 = Task::create("test_9", None, None, &mut conn).unwrap();
+//    let _result = Task::set_status(&task_init_1.id, TaskStatus::Done.to_store(), &mut conn);
+//    let query_result = Task::filter_by_status(TaskStatus::Done.to_store(), &mut conn);
+//    assert_eq!(query_result[0].status, TaskStatus::Done.to_store());
+//}
 
 #[test]
 #[serial]
@@ -147,3 +147,30 @@ fn test_text_filter() {
     assert_eq!(result.len(), 3);
 }
 
+#[test]
+#[serial]
+fn test_text_filter_text_and_status() {
+    let mut conn = establish_connection().get().unwrap();
+    let task1 = Task::create("test_status_1", None, None, &mut conn).unwrap();
+    Task::set_status(&task1.id, TaskStatus::Done.to_store(), &mut conn);
+    let task2 = Task::create("test_status_2", None, None, &mut conn).unwrap();
+    Task::set_status(&task2.id, TaskStatus::Done.to_store(), &mut conn);
+    let task3 = Task::create("test_status_3", None, None, &mut conn).unwrap();
+    Task::set_status(&task3.id, TaskStatus::Deleted.to_store(), &mut conn);
+    let task4 = Task::create("test_status_4", None, None, &mut conn).unwrap();
+    Task::set_status(&task4.id, TaskStatus::Deleted.to_store(), &mut conn);
+    let task5 = Task::create("test_status_5", None, None, &mut conn).unwrap();
+
+    let query = ":status:Done;Deleted";
+
+    let result = Task::filter(query, &mut conn);
+    assert!(!result.contains(&task5));
+    let dones = result.clone().into_iter().filter(|t| t.status == TaskStatus::Done.to_store()).collect::<Vec<Task>>();
+    let deleteds = result.into_iter().filter(|t| t.status == TaskStatus::Deleted.to_store()).collect::<Vec<Task>>();
+    assert!(dones.len() >= 2);
+    assert!(deleteds.len() >= 2);
+    assert!(dones.contains(&task1));
+    assert!(dones.contains(&task2));
+    assert!(deleteds.contains(&task3));
+    assert!(deleteds.contains(&task4));
+}

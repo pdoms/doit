@@ -13,7 +13,6 @@ use super::task::{
     get_by_id, 
     task_update, 
     set_status, 
-    filter_by_status,
     filter_text
 };
 
@@ -132,52 +131,52 @@ async fn set_status_task() {
     assert_eq!(t.status, TaskStatus::Done.to_store());
 }
 
-#[actix_rt::test]
-async fn get_by_status() {
-    let conn_pool = establish_connection();
-    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_by_status)).await;
-    let test_name = "endpoint_test_6";
-    let request_body = json!({"name": test_name, "due": null});
-    let resp = TestRequest::post()
-        .uri("/create")
-        .set_json(&request_body)
-        .send_request(&mut app)
-        .await;
-    let task: Task = read_body_json(resp).await;
-    let test_name_1 = "endpoint_test_7";
-    let request_body = json!({"name": test_name_1, "due": null});
-    let resp = TestRequest::post()
-        .uri("/create")
-        .set_json(&request_body)
-        .send_request(&mut app)
-        .await;
-    
-    let task_1: Task = read_body_json(resp).await;
-    let uri = format!("/set/{}/{}", task.id, TaskStatus::Done.to_store());
-    let uri_1 = format!("/set/{}/{}", task_1.id, TaskStatus::Done.to_store());
-    TestRequest::get()
-        .uri(&uri)
-        .send_request(&mut app)
-        .await;
-    TestRequest::get()
-        .uri(&uri_1)
-        .send_request(&mut app)
-        .await;
-
-    let query = format!("/filter?status={}", TaskStatus::Done.to_store());
-    let resp_filtered = TestRequest::get()
-        .uri(&query)
-        .send_request(&mut app)
-        .await;
-    assert!(resp_filtered.status().is_success(), "Failed to filter by status");
-    let body: Vec<Task> = read_body_json(resp_filtered).await;
-    assert_eq!(body[0].status, TaskStatus::Done.to_store());
-    let mut conn = establish_connection().get().unwrap();
-    Task::delete_task(&task.id, &mut conn).unwrap();
-    Task::delete_task(&task_1.id, &mut conn).unwrap();
-
-
-}
+//#[actix_rt::test]
+//async fn get_by_status() {
+//    let conn_pool = establish_connection();
+//    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_by_status)).await;
+//    let test_name = "endpoint_test_6";
+//    let request_body = json!({"name": test_name, "due": null});
+//    let resp = TestRequest::post()
+//        .uri("/create")
+//        .set_json(&request_body)
+//        .send_request(&mut app)
+//        .await;
+//    let task: Task = read_body_json(resp).await;
+//    let test_name_1 = "endpoint_test_7";
+//    let request_body = json!({"name": test_name_1, "due": null});
+//    let resp = TestRequest::post()
+//        .uri("/create")
+//        .set_json(&request_body)
+//        .send_request(&mut app)
+//        .await;
+//    
+//    let task_1: Task = read_body_json(resp).await;
+//    let uri = format!("/set/{}/{}", task.id, TaskStatus::Done.to_store());
+//    let uri_1 = format!("/set/{}/{}", task_1.id, TaskStatus::Done.to_store());
+//    TestRequest::get()
+//        .uri(&uri)
+//        .send_request(&mut app)
+//        .await;
+//    TestRequest::get()
+//        .uri(&uri_1)
+//        .send_request(&mut app)
+//        .await;
+//
+//    let query = format!("/filter?status={}", TaskStatus::Done.to_store());
+//    let resp_filtered = TestRequest::get()
+//        .uri(&query)
+//        .send_request(&mut app)
+//        .await;
+//    assert!(resp_filtered.status().is_success(), "Failed to filter by status");
+//    let body: Vec<Task> = read_body_json(resp_filtered).await;
+//    assert_eq!(body[0].status, TaskStatus::Done.to_store());
+//    let mut conn = establish_connection().get().unwrap();
+//    Task::delete_task(&task.id, &mut conn).unwrap();
+//    Task::delete_task(&task_1.id, &mut conn).unwrap();
+//
+//
+//}
 
 #[actix_rt::test]
 async fn text_filters() {
@@ -210,7 +209,7 @@ async fn text_filters() {
         .await;
 
     let task_2: Task = read_body_json(resp).await;
-    let query ="/global?term=aa";
+    let query ="/filter?term=aa";
     let query_result = TestRequest::get()
         .uri(query)
         .send_request(&mut app)
@@ -226,6 +225,4 @@ async fn text_filters() {
     Task::delete_task(&task.id, &mut conn).unwrap();
     Task::delete_task(&task_1.id, &mut conn).unwrap();
     Task::delete_task(&task_2.id, &mut conn).unwrap();
-
-
 }
