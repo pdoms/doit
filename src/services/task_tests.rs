@@ -226,3 +226,51 @@ async fn text_filters() {
     Task::delete_task(&task_1.id, &mut conn).unwrap();
     Task::delete_task(&task_2.id, &mut conn).unwrap();
 }
+
+
+#[actix_rt::test]
+async fn text_filters_do_status() {
+    let conn_pool = establish_connection();
+    let mut app = init_service(App::new().app_data(web::Data::new(conn_pool)).service(create).service(set_status).service(filter_text)).await;
+
+    let request_body = json!({"name": "service_test_11", "due": null});
+    let resp = TestRequest::post()
+        .uri("/create")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+    let task: Task = read_body_json(resp).await;
+    let request_body = json!({"name": "service_test_12", "due": null});
+    let resp = TestRequest::post()
+        .uri("/create")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+
+    let task_1: Task = read_body_json(resp).await;
+    let request_body = json!({"name": "service_test_13", "due": null});
+    let resp = TestRequest::post()
+        .uri("/create")
+        .set_json(&request_body)
+        .send_request(&mut app)
+        .await;
+
+
+
+    let task_2: Task = read_body_json(resp).await;
+    let query ="/filter?term=:status:Created;";
+    let query_result = TestRequest::get()
+        .uri(query)
+        .send_request(&mut app)
+        .await;
+
+    assert!(query_result.status().is_success(), "Failed to filter out tasks");
+    let body: Vec<Task> = read_body_json(query_result).await;
+    let ids = body.into_iter().map(|x| x.id).collect::<Vec<String>>();
+    assert!(ids.contains(&task.id));
+    assert!(ids.contains(&task_1.id));
+    assert!(ids.contains(&task_2.id));
+
+
+
+}
