@@ -1,7 +1,6 @@
 use std::fmt;
-use diesel::sql_types::SqlType;
 use serde::{Deserialize, Serialize};
-use diesel::{prelude::*, debug_query};
+use diesel::{prelude::*};
 use diesel::dsl::{now, not};
 use uuid::Uuid;
 
