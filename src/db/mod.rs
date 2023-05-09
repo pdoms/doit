@@ -13,10 +13,6 @@ use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
-
-
-
-
 fn run_migrations(conn: &mut impl MigrationHarness<Pg>) -> Result<(), Box<dyn Error + Send + Sync + 'static>> {
     conn.run_pending_migrations(MIGRATIONS)?;
     Ok(())
@@ -25,7 +21,10 @@ fn run_migrations(conn: &mut impl MigrationHarness<Pg>) -> Result<(), Box<dyn Er
 
 pub fn establish_connection() -> DbPool {
         dotenv().ok();
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let mut database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        if cfg!(test) {
+            database_url =  env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        }
         let manager = ConnectionManager::<PgConnection>::new(database_url);
         let pool =Pool::builder()
             .build(manager)

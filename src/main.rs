@@ -16,12 +16,19 @@ const PORT: u16 = 8080;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
- 
+    use dotenv::dotenv;
     use actix_cors::Cors;
     use actix_web::{App, web, HttpServer};
     use actix_web::middleware::Logger;
     use env_logger;
-
+    dotenv().ok(); 
+    let rest_host = std::env::var("REST_HOST").unwrap_or(HOST.to_string());
+    let rest_port = std::env::var("REST_PORT")
+        .unwrap_or(PORT.to_string())
+        .parse::<u16>()
+        .unwrap_or(PORT);
+ 
+    println!("INFO: will connect to host: {rest_host} and port: {rest_port}");
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
     
     HttpServer::new(move || {
@@ -38,7 +45,7 @@ async fn main() -> std::io::Result<()> {
             .service(set_status)
             .service(task_update)
     })
-        .bind((HOST, PORT))?
+        .bind((rest_host, rest_port))?
         .run()
         .await
 }
