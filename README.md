@@ -15,10 +15,10 @@ On linux:
 
 You will need to have [rust](https://www.rust-lang.org/tools/install) insalled.
 And also [postrgres](https://www.postgresql.org/download/).
-    1. Clone [this](https://github.com/pdoms/serve) repo 
-    2. move the serve executable into the root of the "doit" app.
-    3. make ``run.sh`` executable.
-    4. execute ``run.sh``
+1. Clone [this](https://github.com/pdoms/serve) repo 
+2. move the serve executable into the root of the "doit" app.
+3. make ``run.sh`` executable.
+4. execute ``run.sh``
 
 Configure the ports and hosts in the ``.env`` file.
 
